@@ -1,0 +1,37 @@
+name: Claude Code Warmup
+
+# Pings Claude Code on a fixed schedule so its 5-hour usage window resets land
+# at predictable times during the day (roughly 9am-7pm Israel time), instead
+# of resetting mid-session whenever a real task happens to kick it off.
+#
+# Cron times are UTC and currently set for Israel Daylight Time (IDT, UTC+3),
+# in effect roughly late March - late October. Local ping times: 9:00, 14:00,
+# 19:00 (5 hours apart). When Israel switches to Israel Standard Time (IST,
+# UTC+2, roughly late October - late March), shift each cron entry forward by
+# one hour to keep the same local times:
+#   IDT (UTC+3, current): 6:00, 11:00, 16:00 UTC  -> "0 6 * * *" / "0 11 * * *" / "0 16 * * *"
+#   IST (UTC+2):           7:00, 12:00, 17:00 UTC  -> "0 7 * * *" / "0 12 * * *" / "0 17 * * *"
+on:
+  schedule:
+    - cron: "0 6 * * *"   # 9:00 Israel time (IDT)
+    - cron: "0 11 * * *"  # 14:00 Israel time (IDT)
+    - cron: "0 16 * * *"  # 19:00 Israel time (IDT)
+  workflow_dispatch: {}
+
+jobs:
+  warmup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+
+      - name: Ping Claude Code
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+        run: |
+          claude -p "Reply with just 'ok' — this is a scheduled warmup ping to anchor a usage window, no actual task needed."
