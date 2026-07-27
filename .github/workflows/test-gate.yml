@@ -2,10 +2,18 @@ name: Test warmup gate
 
 on:
   push:
+    branches: [main]
     paths:
       - ".github/scripts/**"
       - ".github/workflows/test-gate.yml"
+  pull_request:
+    paths:
+      - ".github/scripts/**"
+      - ".github/workflows/**"
   workflow_dispatch: {}
+
+permissions:
+  contents: read
 
 jobs:
   test:
