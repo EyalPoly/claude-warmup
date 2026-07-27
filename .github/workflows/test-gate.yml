@@ -1,0 +1,15 @@
+name: Test warmup gate
+
+on:
+  push:
+    paths:
+      - ".github/scripts/**"
+      - ".github/workflows/test-gate.yml"
+  workflow_dispatch: {}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: .github/scripts/warmup-gate.test.sh

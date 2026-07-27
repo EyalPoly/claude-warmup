@@ -1,37 +1,92 @@
 name: Claude Code Warmup
 
-# Pings Claude Code on a fixed schedule so its 5-hour usage window resets land
-# at predictable times during the day (6am-4pm Israel time), instead of
-# resetting mid-session whenever a real task happens to kick it off.
+# Pings Claude Code so its 5-hour usage window resets land at predictable
+# times (06:00 / 11:00 / 16:00 Israel time) instead of resetting mid-session
+# whenever a real task happens to kick one off.
 #
-# Cron times are UTC and currently set for Israel Daylight Time (IDT, UTC+3),
-# in effect roughly late March - late October. Local ping times: 6:00, 11:00,
-# 16:00 (5 hours apart, last one before the 6pm cutoff). When Israel switches
-# to Israel Standard Time (IST, UTC+2, roughly late October - late March),
-# shift each cron entry forward by one hour to keep the same local times:
-#   IDT (UTC+3, current): 3:00, 8:00, 13:00 UTC  -> "0 3 * * *" / "0 8 * * *" / "0 13 * * *"
-#   IST (UTC+2):           4:00, 9:00, 14:00 UTC  -> "0 4 * * *" / "0 9 * * *" / "0 14 * * *"
+# Why this polls every 15 minutes instead of using three daily crons:
+# GitHub's scheduler dispatches scheduled runs late under load. Measured on
+# this repo, "0 3 * * *" actually fired between 05:40 and 06:26 UTC - a 1.5-3.5h
+# delay that also drifts by time of day, so a cron time is a lower bound rather
+# than an appointment. Instead we fire often and gate: the first run to land at
+# or after a target time does the ping, everything else exits in seconds. That
+# makes accuracy depend on the polling interval (~15 min) rather than on
+# GitHub's queue depth, and it can never ping early if their delay shrinks.
+#
+# See .github/scripts/warmup-gate.sh for the target times and grace period.
 on:
   schedule:
-    - cron: "0 3 * * *"   # 6:00 Israel time (IDT)
-    - cron: "0 8 * * *"   # 11:00 Israel time (IDT)
-    - cron: "0 13 * * *"  # 16:00 Israel time (IDT)
-  workflow_dispatch: {}
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Ping now, ignoring the time gate and the already-pinged marker"
+        type: boolean
+        default: true
+
+concurrency:
+  group: warmup
+  cancel-in-progress: false
 
 jobs:
   warmup:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
+      - name: Decide whether this run should ping
+        id: gate
+        env:
+          WARMUP_FORCE: ${{ github.event_name == 'workflow_dispatch' && inputs.force }}
+        run: .github/scripts/warmup-gate.sh
+
+      - name: Check whether this slot was already pinged
+        id: marker
+        if: steps.gate.outputs.should_ping == 'true'
+        uses: actions/cache/restore@v4
+        with:
+          path: .warmup-marker
+          key: warmup-${{ steps.gate.outputs.slot }}
+          lookup-only: true
+
       - name: Set up Node
+        if: steps.gate.outputs.should_ping == 'true' && steps.marker.outputs.cache-hit != 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 20
 
       - name: Install Claude Code
+        if: steps.gate.outputs.should_ping == 'true' && steps.marker.outputs.cache-hit != 'true'
         run: npm install -g @anthropic-ai/claude-code
 
       - name: Ping Claude Code
+        id: ping
+        if: steps.gate.outputs.should_ping == 'true' && steps.marker.outputs.cache-hit != 'true'
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
         run: |
-          claude -p "Reply with just 'ok' — this is a scheduled warmup ping to anchor a usage window, no actual task needed."
+          for attempt in 1 2 3; do
+            if claude -p "Reply with just 'ok' — this is a scheduled warmup ping to anchor a usage window, no actual task needed."; then
+              echo "ping succeeded on attempt ${attempt}"
+              exit 0
+            fi
+            echo "attempt ${attempt} failed"
+            if [ "$attempt" -lt 3 ]; then
+              sleep $(( attempt * 60 ))
+            fi
+          done
+          echo "::error::warmup ping failed after 3 attempts - slot ${{ steps.gate.outputs.slot }} is unanchored"
+          exit 1
+
+      # Written only on success, so a failed slot stays eligible for a retry by
+      # a later run rather than being marked done.
+      - name: Save slot marker
+        if: steps.ping.outcome == 'success'
+        run: date -u +%FT%TZ > .warmup-marker
+
+      - name: Cache slot marker
+        if: steps.ping.outcome == 'success'
+        uses: actions/cache/save@v4
+        with:
+          path: .warmup-marker
+          key: warmup-${{ steps.gate.outputs.slot }}
