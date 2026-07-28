@@ -18,7 +18,7 @@ set -euo pipefail
 
 # Israel local times the 5-hour usage windows should be anchored at. Evaluated
 # in Asia/Jerusalem, so IDT/IST transitions are handled without an edit.
-TARGETS=(06:00 11:00 16:00)
+TARGETS=(07:00 12:00 17:00)
 
 # A run landing more than this past a target is too far off to be a useful
 # anchor, so it stands down instead of shifting the window somewhere wrong.
