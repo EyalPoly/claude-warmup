@@ -1,7 +1,7 @@
 name: Claude Code Warmup
 
 # Pings Claude Code so its 5-hour usage window resets land at predictable
-# times (06:00 / 11:00 / 16:00 Israel time) instead of resetting mid-session
+# times (07:00 / 12:00 / 17:00 Israel time) instead of resetting mid-session
 # whenever a real task happens to kick one off.
 #
 # Why this polls every 15 minutes instead of using three daily crons:
