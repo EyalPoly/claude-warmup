@@ -1,0 +1,33 @@
+name: Keepalive
+
+# GitHub auto-disables scheduled workflows after 60 days with no push to
+# the repo - and running the warmup schedule doesn't count as activity,
+# only commits do. This repo has no other commit traffic, so without this
+# workflow the warmup schedule would eventually go dark on its own. Runs
+# monthly (well under the 60-day window) and pushes a trivial commit to
+# reset the inactivity clock.
+
+on:
+  schedule:
+    - cron: "0 0 1 * *"
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  keepalive:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record keepalive timestamp
+        run: date -u +%FT%TZ > .github/KEEPALIVE
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/KEEPALIVE
+          git commit -m "Keepalive: reset scheduled workflow inactivity timer"
+          git push
