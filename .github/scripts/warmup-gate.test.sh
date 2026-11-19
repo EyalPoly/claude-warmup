@@ -29,23 +29,23 @@ check() {
 }
 
 echo "== IDT (UTC+3, summer) =="
-check "one minute before first target" "2026-07-27 05:59" "false,"
-check "exactly at first target"        "2026-07-27 06:00" "true,2026-07-27-06"
-check "inside grace after first"       "2026-07-27 07:59" "true,2026-07-27-06"
-check "just past grace"                "2026-07-27 08:01" "false,"
-check "second target"                  "2026-07-27 11:10" "true,2026-07-27-11"
-check "third target"                   "2026-07-27 16:00" "true,2026-07-27-16"
-check "evening, all slots done"        "2026-07-27 18:30" "false,"
-check "middle of the night"            "2026-07-27 02:00" "false,"
+check "one minute before first target" "2026-07-27 06:59" "false,"
+check "exactly at first target"        "2026-07-27 07:00" "true,2026-07-27-07"
+check "inside grace after first"       "2026-07-27 08:59" "true,2026-07-27-07"
+check "just past grace"                "2026-07-27 09:01" "false,"
+check "second target"                  "2026-07-27 12:10" "true,2026-07-27-12"
+check "third target"                   "2026-07-27 17:00" "true,2026-07-27-17"
+check "evening, all slots done"        "2026-07-27 19:30" "false,"
+check "middle of the night"            "2026-07-27 03:00" "false,"
 
 echo "== IST (UTC+2, winter) - same local times, no file edit =="
-check "winter first target"            "2026-01-15 06:05" "true,2026-01-15-06"
-check "winter before first target"     "2026-01-15 05:30" "false,"
-check "winter third target"            "2026-01-15 16:30" "true,2026-01-15-16"
+check "winter first target"            "2026-01-15 07:05" "true,2026-01-15-07"
+check "winter before first target"     "2026-01-15 06:30" "false,"
+check "winter third target"            "2026-01-15 17:30" "true,2026-01-15-17"
 
 echo "== DST boundary days =="
-check "day IDT ends"                   "2026-10-25 11:00" "true,2026-10-25-11"
-check "day IDT starts"                 "2026-03-27 16:00" "true,2026-03-27-16"
+check "day IDT ends"                   "2026-10-25 12:00" "true,2026-10-25-12"
+check "day IDT starts"                 "2026-03-27 17:00" "true,2026-03-27-17"
 
 echo "== force bypass =="
 out=$(mktemp)
